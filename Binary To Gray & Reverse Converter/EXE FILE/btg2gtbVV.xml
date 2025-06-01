@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch4jConfig>
+  <dontWrapJar>false</dontWrapJar>
+  <headerType>console</headerType>
+  <jar>C:\Program Files (x86)\IdeaProjects.jar</jar>
+  <outfile>C:\Users\ATIF HUSSAIN\Documents\btg2gtbVV.exe</outfile>
+  <errTitle></errTitle>
+  <cmdLine></cmdLine>
+  <chdir>.</chdir>
+  <priority>normal</priority>
+  <downloadUrl></downloadUrl>
+  <supportUrl></supportUrl>
+  <stayAlive>false</stayAlive>
+  <restartOnCrash>true</restartOnCrash>
+  <manifest></manifest>
+  <icon>C:\Users\ATIF HUSSAIN\Desktop\New folder (6)\picture emoji\488924-removebg-preview.png</icon>
+  <classPath>
+    <mainClass>Main</mainClass>
+  </classPath>
+  <jre>
+    <path>jdk-20</path>
+    <requiresJdk>false</requiresJdk>
+    <requires64Bit>false</requires64Bit>
+    <minVersion>1.4.0</minVersion>
+    <maxVersion></maxVersion>
+  </jre>
+</launch4jConfig>

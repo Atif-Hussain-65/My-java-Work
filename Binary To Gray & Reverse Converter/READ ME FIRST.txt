@@ -1,0 +1,8 @@
+the command that can be input are:
+1.btg
+2.gtb
+3.exit
+ 
+btg for binary to gray 
+gtb for gray to binary
+exit to close everything

@@ -1,0 +1,283 @@
+package com.attendance;
+
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.location.LocationManager;
+import android.net.wifi.WifiManager;
+import android.net.wifi.p2p.WifiP2pGroup;
+import android.net.wifi.p2p.WifiP2pManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+
+import com.attendance.Views.ClickableOnlySwitch;
+import com.google.firebase.auth.FirebaseAuth;
+
+import java.lang.reflect.Field;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public class Wifi_Ditrcet_Creating_Data_File extends AppCompatActivity {
+
+    WifiManager wifiManager;
+    BluetoothAdapter bluetoothAdapter;
+    LocationManager locationManager;
+
+    TextView wifiinfocrreate, checkwifionlocandbluetooth, infoteacherchanel;
+    String batch, semester, section, department;
+    Intent intent;
+
+    ClickableOnlySwitch wifiOnOffCreateData;
+    ClickableOnlySwitch bluetoothOnOffCreateData;
+    ClickableOnlySwitch locationOnOffCreateData;
+    TextView wifi1OnOffCreateData;
+    TextView bluetooth1OnOffCreateData;
+    TextView location1OnOffCreateData;
+
+    WifiStateReceiver wifiStateReceiver;
+    BluetoothStateReceiver bluetoothStateReceiver;
+    LocationStateReceiver locationStateReceiver;
+
+    WifiP2pManager wifiP2pManager;
+
+    WifiP2pManager.Channel channel;
+
+
+    private static final int REQUEST_BLUETOOTH_PERMISSIONS = 1;
+    private static final int REQUEST_LOCATION_PERMISSIONS = 2;
+
+    @SuppressLint("MissingInflatedId")
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        getSupportActionBar().hide();
+        setContentView(R.layout.activity_wifi_ditrcet_creating_data_file);
+
+        intent = getIntent();
+        batch = intent.getStringExtra("batch");
+        semester = intent.getStringExtra("semester");
+        section = intent.getStringExtra("section");
+        department = intent.getStringExtra("department");
+
+        wifiOnOffCreateData = findViewById(R.id.wifiOnOffCreateData);
+        bluetoothOnOffCreateData = findViewById(R.id.bluetoothOnOffCreateData);
+        locationOnOffCreateData = findViewById(R.id.LocationOnOffCreateData);
+
+        wifi1OnOffCreateData = findViewById(R.id.wifi1OnOffCreateData);
+        bluetooth1OnOffCreateData = findViewById(R.id.bluetooth1OnOffCreateData);
+        location1OnOffCreateData = findViewById(R.id.Location1OnOffCreateData);
+
+        wifiinfocrreate = findViewById(R.id.wifiinfocrreate);
+        infoteacherchanel = findViewById(R.id.infoteacherchanel);
+        checkwifionlocandbluetooth = findViewById(R.id.checkwifionlocandbluetooth);
+        wifiinfocrreate.setText(department.trim() + " " + "Batch " + batch.trim() + " " + semester.trim() + " " + section.trim());
+
+        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        wifiOnOffCreateData.setChecked(wifiManager.isWifiEnabled());
+        wifiStateReceiver = new WifiStateReceiver(wifiOnOffCreateData, wifiManager);
+
+        wifiP2pManager = (WifiP2pManager) getSystemService(Context.WIFI_P2P_SERVICE);
+        channel = wifiP2pManager.initialize(this, getMainLooper(), null);
+
+        wifi1OnOffCreateData.setOnClickListener(view -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startActivity(new Intent(Settings.Panel.ACTION_INTERNET_CONNECTIVITY));
+                wifiOnOffCreateData.setChecked(wifiManager.isWifiEnabled());
+            } else {
+                wifiManager.setWifiEnabled(!wifiManager.isWifiEnabled());
+                wifiOnOffCreateData.setChecked(wifiManager.isWifiEnabled());
+            }
+        });
+
+        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        bluetoothOnOffCreateData.setChecked(bluetoothAdapter != null && bluetoothAdapter.isEnabled());
+        bluetoothStateReceiver = new BluetoothStateReceiver(bluetoothOnOffCreateData, bluetoothAdapter);
+
+        bluetooth1OnOffCreateData.setOnClickListener(view -> {
+            if (bluetoothAdapter != null) {
+                Intent intent = new Intent(Settings.ACTION_BLUETOOTH_SETTINGS);
+                startActivity(intent);
+                bluetoothOnOffCreateData.setChecked(bluetoothAdapter.isEnabled());
+            }
+        });
+
+        // Location setup
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        AtomicBoolean isLocationEnabled = new AtomicBoolean(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
+        locationOnOffCreateData.setChecked(isLocationEnabled.get());
+        locationStateReceiver = new LocationStateReceiver(locationOnOffCreateData, this);
+
+        location1OnOffCreateData.setOnClickListener(view -> {
+            Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+            startActivity(intent);
+            isLocationEnabled.set(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER));
+            locationOnOffCreateData.setChecked(isLocationEnabled.get());
+        });
+        checkwifionlocandbluetooth.setOnClickListener(view -> {
+            checkAllServicesAndCreateGroup();
+        });
+    }
+
+    private void checkAllServicesAndCreateGroup() {
+        boolean wifiEnabled = wifiManager.isWifiEnabled();
+        boolean bluetoothEnabled = bluetoothAdapter.isEnabled();
+        boolean locationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+
+        if (wifiEnabled && bluetoothEnabled && locationEnabled) {
+            String teacherName = getUserName() + " " + department.trim() + " " + "Batch " + batch.trim() + " " + semester.trim() + " " + section.trim();
+            createWifiDirectGroup(teacherName);
+        } else {
+            Toast.makeText(this, "Please enable WiFi, Bluetooth, and Location", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 101;
+    private static final int PERMISSIONS_REQUEST_NEARBY_WIFI_DEVICES = 102;
+
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU)
+    private void createWifiDirectGroup(String teacherName) {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION},
+                    PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+        } else if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.NEARBY_WIFI_DEVICES)
+                != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.NEARBY_WIFI_DEVICES},
+                    PERMISSIONS_REQUEST_NEARBY_WIFI_DEVICES);
+
+
+        } else {
+            initiateGroupCreation(teacherName);
+        }
+    }
+
+    private void initiateGroupCreation(String teacherName) {
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(this, android.Manifest.permission.NEARBY_WIFI_DEVICES) != PackageManager.PERMISSION_GRANTED) {
+       
+            return;
+        }
+        wifiP2pManager.createGroup(channel, new WifiP2pManager.ActionListener() {
+            @Override
+            public void onSuccess() {
+                if (ActivityCompat.checkSelfPermission(Wifi_Ditrcet_Creating_Data_File.this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        != PackageManager.PERMISSION_GRANTED
+                        || ActivityCompat.checkSelfPermission(Wifi_Ditrcet_Creating_Data_File.this, android.Manifest.permission.NEARBY_WIFI_DEVICES)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    return;
+                }
+                wifiP2pManager.requestGroupInfo(channel, group -> {
+                    if (group != null) {
+                        String passphrase = group.getPassphrase();
+                        setWifiDirectNetworkName(group, teacherName);
+                        wifiinfocrreate.setText("Network Name: " + teacherName + "\nPassword: " + passphrase);
+                    }
+                });
+            }
+
+            @Override
+            public void onFailure(int reason) {
+                Toast.makeText(Wifi_Ditrcet_Creating_Data_File.this, "Failed to create WiFi Direct group", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        String teacherName = getUserName() + " " + department.trim() + " " + "Batch " + batch.trim() + " " + semester.trim() + " " + section.trim();
+        if (requestCode == PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Request NEARBY_WIFI_DEVICES permission next
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{Manifest.permission.NEARBY_WIFI_DEVICES},
+                            PERMISSIONS_REQUEST_NEARBY_WIFI_DEVICES);
+                }
+            } else {
+                Toast.makeText(this, "Location permission not granted", Toast.LENGTH_SHORT).show();
+            }
+        } else if (requestCode == PERMISSIONS_REQUEST_NEARBY_WIFI_DEVICES) {
+            if(true){
+//            (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Both permissions granted, proceed with group creation
+                 teacherName = getUserName() + " " + department.trim() + " " + "Batch " + batch.trim() + " " + semester.trim() + " " + section.trim();
+                initiateGroupCreation(teacherName);
+            } else {
+                Toast.makeText(this, "Nearby WiFi devices permission not granted", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+
+    private     void setWifiDirectNetworkName(WifiP2pGroup group, String networkName) {
+        try {
+            @SuppressLint("SoonBlockedPrivateApi") Field field = group.getClass().getDeclaredField("mNetworkName");
+            field.setAccessible(true);
+            field.set(group, networkName);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private String getUserName() {
+        FirebaseAuth firebaseAuth=FirebaseAuth.getInstance();
+
+        return firebaseAuth.getCurrentUser().getDisplayName().toString().trim();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(wifiStateReceiver, new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION));
+        registerReceiver(bluetoothStateReceiver, new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED));
+        registerReceiver(locationStateReceiver, new IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION));
+
+        wifiOnOffCreateData.setChecked(wifiManager.isWifiEnabled());
+        bluetoothOnOffCreateData.setChecked(bluetoothAdapter != null && bluetoothAdapter.isEnabled());
+        boolean isLocationEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        locationOnOffCreateData.setChecked(isLocationEnabled);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(wifiStateReceiver);
+        unregisterReceiver(bluetoothStateReceiver);
+        unregisterReceiver(locationStateReceiver);
+    }
+
+    private long backPressedTime;
+    private Toast backToast;
+
+    @Override
+    public void onBackPressed() {
+        if (backPressedTime + 2000 > System.currentTimeMillis()) {
+            backToast.cancel();
+            super.onBackPressed();
+            startActivity(new Intent(Wifi_Ditrcet_Creating_Data_File.this, Loadingsplash.class));
+            finish();
+            return;
+        } else {
+            backToast = Toast.makeText(getBaseContext(), "Press back again to exit", Toast.LENGTH_SHORT);
+            backToast.show();
+        }
+
+        backPressedTime = System.currentTimeMillis();
+    }
+}
+
+

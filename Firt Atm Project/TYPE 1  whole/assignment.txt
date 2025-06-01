@@ -1,0 +1,16 @@
+1.insert the card.
+2.verify the card.
+3.enter the your pin number.(comprises of 4 digits).
+4.following options are shown to the user:
+    {
+	a. is cash withdraw
+	b. mini statement
+	c. bill payment
+	d. transfer to another bank account
+	e. change pin or password
+     }
+5.enter the amount you want to with draw.
+6.the card.
+7.take the cash.
+8.optional receipt.
+bakwassssssssssssssssssssssss
